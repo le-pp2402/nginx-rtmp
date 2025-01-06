@@ -1,0 +1,137 @@
+<div id="topics">
+    <div class="post">
+        <h1 class="postTitle">
+            <a id="cb_post_title_url" class="postTitle2 vertical-middle" href="https://www.cnblogs.com/longfurcat/p/10201026.html" title="发布于 2018-12-31 11:47">
+<span role="heading" aria-level="2">【详解】WebSocket相关知识整理</span>
+
+
+</a><button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button>
+
+        </h1>
+        <div class="clear"></div>
+        <div class="postBody">
+            <div id="cnblogs_post_body" class="blogpost-body blogpost-body-html">
+<h2>前言<button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button></h2>
+<p>　　记得大概半年前就产生了疑惑，即后台如何主动向前端推送数据。问了下专业老师，知道了原来有一个叫WebSocket的技术可以用于推送数据。于是，当时我就找了个教程，用的是Spring WebSocket。照着敲了一遍，也就搭起来了，依葫芦画瓢而已。当时有其他东西要学，也没有相关的需求，就没再接触过。前阵子刚好要用这个框架，但是API早忘了，就又搜了一遍，发现网上各种各样的案例都有，API都不一样。以下是我这阶段对各种与WebSocket挂钩的知识点的梳理。</p>
+<h2>数据推送的应用场景<button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button></h2>
+<p>　　数据推送的应用场景很多，如发送公告，邮件提示啊等等。那么问题是如何推送，换句话说，前端如何获得最新的数据？</p>
+<h2>推和拉<button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button></h2>
+<p>　　假如后台更新了一些数据，如添加了一个公告，想要让所有浏览主页的人都看到。那么我要做的，就是把服务器的数据推送给浏览器。我们知道，双方通信必须建立连接。但是问题就来了，HTTP连接的发起方只能是浏览器，而且请求一旦结束，连接就断了。去哪里找连接呢？所以，单纯依赖HTTP来推数据是行不通的。那既然推不动，我客户端主动去拉不就行了。</p>
+<p>　　拉当然是可以的，一种解决方法就是轮询，即每隔一段时间用Ajax请求一遍。这样确实可以达到目的。但是存在两个问题，一个是开销问题，如果你轮询了一个上午，都没有最新消息，那你这一上午发出的请求都是无效请求，都是相当于在骚扰服务器。你可能也意识到了前一个问题，决定把时间间隔设大，来减少请求数。但是这样就可能影响实时性了，也就是说如果在本次无效请求后，数据刚好更新，那么你必须等待一个时间周期结束后，才能获取到最新值。</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<img src="https://img2018.cnblogs.com/blog/1313132/201812/1313132-20181230220847589-831320932.png" alt="" data-action="zoom" class="medium-zoom-image"></p>
+<p>--------------------------------2019年1月22日补充---------------------------------------------</p>
+<p>频繁发请求，就必须频繁地握手，建立连接。这个过程的开销不可忽视，websocket的话，一般只需要建立一次连接，然后不断开，减少了建立连接的开销。</p>
+<h2>WebSocket技术<button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button></h2>
+<p>　　WebSocket就是用来解决前面的连接问题的。使用WebSocket时，连接的发起方同样是浏览器，但是不同的是，除非一方主动触发，否则连接一旦建立就不会断开。另外需要注意的是，建立连接，即握手过程，用的还是HTTP协议，这个过程如果顺利的话，就会将HTTP协议升级到WebSocket协议。</p>
+<p>　　<strong>WebSocket协议相对于HTTP有何优点?</strong></p>
+<p>　　除了让后台可以主动推数据外，WebSocket还具有以下优点：</p>
+<ul>
+<li style="list-style-type: none">
+<ul>
+<li>连接状态可保持，因为是长连接，就不需要像HTTP那样每次都带Cookie这样。</li>
+<li>更少的控制信息，单纯的WebSocket不需要HTTP那么多的头信息，轻量级。</li>
+<li>支持扩展，可以扩展协议，如STOMP</li>
+</ul>
+</li>
+</ul>
+<p>-----------------------------2019年2月10日补充--------------------------------</p>
+<p>现在使用的Http协议基本都是1.1版本，1.1版本默认都是长连接。除非主动去关闭它，否则后续的请求都会复用这个socket连接。所以，在建立连接的次数方面，WebSocket不占优势。</p>
+<h2>后备选项 PLAN B<button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button></h2>
+<p>　　诶，有没有注意到，我前面说的是"如果顺利"，难道HTTP升级到Websocket还会失败吗？答案是会。为什么，因为<span style="background-color: rgba(255, 255, 0, 1)">不是所有浏览器都支持WebSocket协议</span>的。那这问题不就出现了吗，我当初是这么想的，你们下个新的浏览器会死啊?！</p>
+<p>　　后来，我冷静思考了一下，我这样想是不对的。因为如果是一个对外网站，一个游客因为浏览器不支持，而不能得到良好的响应效果，你觉得他还会耐心地装新浏览器，再次访问吗？所以，我们必须有后备选项实现推送功能。其实，所谓的后备选项就是轮询。那这时候我们要做的就是前端的工作了，即判断浏览器是否支持，如果支持就用WebSocket，如果不能就用Ajax轮询。但是这样其实工作量挺大的，特别是浏览器还要跟服务端交互，而不仅仅是接收数据的时候。</p>
+<p>　　好在，有一个包含WebSocket和长轮询的框架，<strong>SockJS</strong>。使用它的时候，如果浏览器支持就用WebSocket传输，如果不支持就用轮询。判断和切换对我们来说是透明的，我们使用它的方法，跟使用WebSocket的API差不多。Spring WebSocket就支持SockJS，服务端配置也方便，绑定连接点的时候加上.withSockJS()即可。</p>
+<h2>WebSocket的API<button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button></h2>
+<p>　　服务端发布一个WebSocket连接点的过程：</p>
+<p>　　1.创建连接点类</p>
+<p>　　2.实现该连接点的各个生命周期的方法，如连接建立成功，来消息，连接断开这些回调函数</p>
+<p>　　3.在连接点类中添加业务逻辑，这主要看你的应用需求了</p>
+<p>　　4.发布连接点，其实就是绑定这个连接点类到一个URL，当客户端尝试连接这个URL后，所有的操作由这个类实例完成</p>
+<h3>　　<strong>JavaEE WebSocket API</strong><button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button></h3>
+<p><strong>　　</strong>JavaEE有相关的API规范，JSR 356。Tomcat实现了这套规范。</p>
+<p>　　<strong>需要的包：</strong>如果是Spring Boot项目，你勾选了Web选项。那你就有了内置Tomcat，也就直接能用WebSocket了。<span style="background-color: rgba(255, 255, 0, 1)">注：不需要引入Spring-WebSocket</span>。</p>
+<p>　　<strong>API使用方式：</strong>这个API的使用方式是，创建一个连接点类，标注上@ServerEndPoint("指定的URL")注解，然后在类内部，使用@OnOpen, @OnMessage，@OnClose等注解标识对应的生命周期回调方法。</p>
+<h3><strong>　　Spring WebSocket API</strong><button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button></h3>
+<p><strong>　　</strong>Spring WebSocket 在原生基础上，做了些补充，有自己的使用方法。</p>
+<p>　　<strong>需要的包：</strong>如果是Spring Boot项目要使用Spring的WebSocket，就要勾选WebSocket选项，它就会引入相关的整合包。</p>
+<p>　　<strong>API使用方式：</strong><span style="background-color: rgba(255, 255, 0, 1)">注：这里只讲纯WebSocket的使用，不讲扩展内容。</span>Spring把连接点的处理类叫作Handler，创建Handler的方式可以是实现WebSocketHandler接口，或继承已有类TextWebSocketHandler等，你需要根据需要覆盖已有的回调方法。然后在实现了WebSocketConfigurer接口的配置类中，绑定URL。这里需要使用@EnableWebSocket注解开启WebSocket支持。</p>
+<p>　　<strong>与原生API的对比：</strong>我觉得同样是使用纯WebSocketAPI，Spring因为用的是实现接口的形式，所以它各个回调方法的参数都更明确。而且一看接口就很清楚有哪些回调方法。而如果使用@OnOpen，@OnMessage等注解，你根本不清楚注解的方法，支持哪些参数，参数到底是什么类型的。这些你看注解代码都看不出来，需要看官方的说明才清楚。</p>
+<p>　　<strong>扩展内容：</strong>Spring除了让你能使用纯WebSocket外，还支持其他扩展。如支持SockJS使得浏览器.都能接受推送数据，支持WebSocket扩展协议STOMP，使得能够像消息机制那样使用WebSocket。</p>
+<p>　　<strong>使用程度：</strong>Spring WebSocket支持扩展，你可以自己决定用到什么程度。</p>
+<p>　　1.纯WebSocket，部分浏览器不支持。如果你确定用户使用的浏览器都没问题，用到这层就够了。</p>
+<p>　　2.支持SockJS（WebSocket + 长轮询），服务端改动的话，只需要加withSockJS即可。所有浏览器都支持</p>
+<p>　　3.纯WebSocket/SockJS + STOMP。这种时候是队列使用的是In-Memory的MQ。消息机制，可发布订阅，实现广播。</p>
+<p>　　4.纯WebSocket/SockJS + STOMP + ActiveMQ/RabbitMQ。引入第三方消息队列。这时候消息就能持久化，防止因服务器宕机，导致消息丢失。</p>
+<p>　　<span style="background-color: rgba(255, 255, 0, 1)">注意：使用STOMP，并不一定要配合SockJS。</span></p>
+<h2>Socket.IO<button class="cnblogs-toc-button" title="显示目录导航" aria-expanded="false"></button></h2>
+<p><span style="background-color: rgba(255, 255, 255, 1)">　　Socket.IO是单独的一套WebSocketAPI。它使用的Engine.IO引擎也能够切换传输方式，即所有浏览器都支持，相当于SockJS吧。它的分组机制，使得它也能够广播消息，暂时不知道是否支持STOMP扩展。它官方提供的服务端实现是Node版，客户端支持多种语言。Java如果要使用它的服务端的话，可以使用一个开源的用Netty实现的框架netty-socketio。</span></p>
+<p><span style="background-color: rgba(255, 255, 255, 1)">　　目前就Spring-WebSocket与Socket.IO的性能优劣还不甚了解。</span></p>
+</div>
+<div class="clear"></div>
+<div id="blog_post_info_block" role="contentinfo">
+
+
+<div id="BlogPostCategory">
+分类: 
+        <a href="https://www.cnblogs.com/longfurcat/category/1373865.html" target="_blank">WebSocket</a>
+</div>
+
+<div id="blog_post_info">
+<div id="green_channel">
+    <a href="javascript:void(0);" id="green_channel_digg" onclick="DiggIt(10201026,cb_blogId,1);green_channel_success(this,'谢谢推荐！');">好文要顶</a>
+    <a id="green_channel_follow" onclick="follow('c17a61bb-0f54-4224-21bc-08d54dba4453');" href="javascript:void(0);">关注我</a>
+<a id="green_channel_favorite" onclick="AddToWz(cb_entryId);return false;" href="javascript:void(0);">收藏该文</a>
+<a id="green_channel_wechat" href="javascript:void(0);" onclick="shareManager.wechatShare()">微信分享</a>
+</div>
+<div id="author_profile">
+<div id="author_profile_info" class="author_profile_info">
+        <a href="https://home.cnblogs.com/u/longfurcat/" target="_blank"><img src="https://pic.cnblogs.com/face/1313132/20180708234608.png" class="author_avatar" alt=""></a>
+    <div id="author_profile_detail" class="author_profile_info">
+        <a href="https://home.cnblogs.com/u/longfurcat/">猫毛·波拿巴</a>
+        <br>
+        <a href="https://home.cnblogs.com/u/longfurcat/followers/">粉丝 - <span class="follower-count">52</span></a>
+        <a href="https://home.cnblogs.com/u/longfurcat/followees/">关注 - <span class="following-count">0</span></a><br>
+    </div>
+</div>
+<div class="clear"></div>
+<div id="author_profile_honor"></div>
+<div id="author_profile_follow" class="follow-tip">
+            <a href="javascript:void(0);" onclick="follow('c17a61bb-0f54-4224-21bc-08d54dba4453');return false;">+加关注</a>
+</div>
+</div>
+<div id="div_digg">
+<div class="diggit" onclick="votePost(10201026,'Digg')">
+    <span class="diggnum" id="digg_count">1</span>
+</div>
+<div class="buryit" onclick="votePost(10201026,'Bury')">
+    <span class="burynum" id="bury_count">0</span>
+</div>
+<div class="clear"></div>
+<div class="diggword" id="digg_tips">
+</div>
+</div>
+
+
+</div>
+<div class="clear"></div>
+<div id="post_next_prev">
+
+<a href="https://www.cnblogs.com/longfurcat/p/10199842.html" class="p_n_p_prefix">« </a> 上一篇：    <a href="https://www.cnblogs.com/longfurcat/p/10199842.html" data-featured-image="" title="发布于 2018-12-30 16:33">【杂谈】Spring Boot 默认支持的并发量</a>
+<br>
+<a href="https://www.cnblogs.com/longfurcat/p/10293819.html" class="p_n_p_prefix">» </a> 下一篇：    <a href="https://www.cnblogs.com/longfurcat/p/10293819.html" data-featured-image="" title="发布于 2019-01-20 15:20">【详解】Spring Security 之 SecurityContext</a>
+
+</div>
+</div>
+        </div>
+        <div class="postDesc">posted @ 
+<span id="post-date" data-last-update-days="2151.146500253925" data-date-created="BlogServer.Application.Dto.BlogPost.BlogPostDto" data-date-updated="2019-02-10 14:54" aria-expanded="false">2018-12-31 11:47</span>&nbsp;
+<a href="https://www.cnblogs.com/longfurcat">猫毛·波拿巴</a>&nbsp;
+阅读(<span id="post_view_count">1125</span>)&nbsp;
+评论(<span id="post_comment_count">0</span>)&nbsp;
+<a href="https://i.cnblogs.com/EditPosts.aspx?postid=10201026" rel="nofollow">编辑</a>&nbsp;
+<a href="javascript:void(0)" onclick="AddToWz(10201026);return false;">收藏</a>&nbsp;
+<a href="javascript:void(0)" onclick="reportManager.report({ currentUserId: '', targetType: 'blogPost', targetId: '10201026', targetLink: 'https://www.cnblogs.com/longfurcat/p/10201026.html', title: '【详解】WebSocket相关知识整理' })">举报</a>
+</div>
+    </div>
+    
+    
+</div>

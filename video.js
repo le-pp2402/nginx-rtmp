@@ -1,5 +1,7 @@
 const video = document.getElementById('my-video');
-const videoSrc = '/hls/random.m3u8'; // Đường dẫn tới file HLS playlist
+
+const chanel = document.getElementById('chanel').value;
+const videoSrc = `http://localhost:81/hls/${chanel}.m3u8`;
 
 if (Hls.isSupported()) {    
     const hls = new Hls();
